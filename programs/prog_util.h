@@ -120,6 +120,8 @@ extern void _printf(1, 2) msg(const char *fmt, ...);
 extern void _printf(1, 2) msg_errno(const char *fmt, ...);
 
 extern void *xmalloc(size_t size);
+extern int alloc_guarded_buffer(size_t size, u8 **start_ret, u8 **end_ret);
+extern void free_guarded_buffer(u8 *start, u8 *end);
 
 extern u64 timer_ticks(void);
 extern u64 timer_ticks_to_ms(u64 ticks);
