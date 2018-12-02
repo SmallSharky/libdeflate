@@ -116,12 +116,12 @@ STATIC_LIB_OBJ := $(addprefix $(BUILD_DIR), $(LIB_SRC:.c=.o))
 SHARED_LIB_OBJ := $(addprefix $(BUILD_DIR), $(LIB_SRC:.c=.shlib.o))
 
 # Compile static library object files
-$(STATIC_LIB_OBJ): $(BUILD_DIR)%.o: %.c $(LIB_HEADERS) $(COMMON_HEADERS) .lib-cflags
+$(STATIC_LIB_OBJ): $(BUILD_DIR)%.o: %.c $(LIB_HEADERS) $(COMMON_HEADERS) $(BUILD_DIR).lib-cflags
 	mkdir -p $(@D)
 	$(QUIET_CC) $(CC) -o $@ -c $(LIB_CFLAGS) $<
 
 # Compile shared library object files
-$(SHARED_LIB_OBJ): $(BUILD_DIR)%.shlib.o: %.c $(LIB_HEADERS) $(COMMON_HEADERS) .lib-cflags
+$(SHARED_LIB_OBJ): $(BUILD_DIR)%.shlib.o: %.c $(LIB_HEADERS) $(COMMON_HEADERS) $(BUILD_DIR).lib-cflags
 	$(QUIET_CC) $(CC) -o $@ -c $(LIB_CFLAGS) $(SHARED_LIB_CFLAGS) -DLIBDEFLATE_DLL $<
 
 # Create static library
@@ -137,7 +137,8 @@ $(SHARED_LIB):$(SHARED_LIB_OBJ)
 DEFAULT_TARGETS += $(SHARED_LIB)
 
 # Rebuild if CC or LIB_CFLAGS changed
-.lib-cflags: FORCE
+$(BUILD_DIR).lib-cflags: FORCE
+	mkdir -p $(dir $@)
 	@flags='$(CC):$(LIB_CFLAGS)'; \
 	if [ "$$flags" != "`cat $@ 2>/dev/null`" ]; then \
 		[ -e $@ ] && echo "Rebuilding library due to new compiler flags"; \
@@ -153,7 +154,7 @@ PROG_CFLAGS += $(CFLAGS)		 \
 	       -D_FILE_OFFSET_BITS=64	 \
 	       -DHAVE_CONFIG_H
 
-PROG_COMMON_HEADERS := programs/prog_util.h programs/config.h
+PROG_COMMON_HEADERS := programs/prog_util.h $(BUILD_DIR)programs/config.h
 PROG_COMMON_SRC     := programs/prog_util.c programs/tgetopt.c
 NONTEST_PROGRAM_SRC := programs/gzip.c
 TEST_PROGRAM_SRC    := programs/benchmark.c programs/test_checksums.c \
@@ -169,12 +170,13 @@ TEST_PROGRAM_OBJ    := $(TEST_PROGRAM_SRC:%.c=%.o)
 PROG_OBJ := $(PROG_COMMON_OBJ) $(NONTEST_PROGRAM_OBJ) $(TEST_PROGRAM_OBJ)
 
 # Generate autodetected configuration header
-programs/config.h:programs/detect.sh .prog-cflags
+$(BUILD_DIR)programs/config.h:programs/detect.sh $(BUILD_DIR).prog-cflags
+	$(QUIET_GEN) mkdir -p $(dir $@)
 	$(QUIET_GEN) CC="$(CC)" CFLAGS="$(PROG_CFLAGS)" $< > $@
 
 # Compile program object files
-$(PROG_OBJ): %.o: %.c $(PROG_COMMON_HEADERS) $(COMMON_HEADERS) .prog-cflags
-	$(QUIET_CC) $(CC) -o $@ -c $(PROG_CFLAGS) $<
+$(PROG_OBJ): %.o: %.c $(PROG_COMMON_HEADERS) $(COMMON_HEADERS) $(BUILD_DIR).prog-cflags
+	$(QUIET_CC) $(CC) -I$(BUILD_DIR)programs -o $@ -c $(PROG_CFLAGS) $<
 
 # Link the programs.
 #
@@ -200,7 +202,7 @@ endif
 DEFAULT_TARGETS += gunzip$(PROG_SUFFIX)
 
 # Rebuild if CC or PROG_CFLAGS changed
-.prog-cflags: FORCE
+$(BUILD_DIR).prog-cflags: FORCE
 	@flags='$(CC):$(PROG_CFLAGS)'; \
 	if [ "$$flags" != "`cat $@ 2>/dev/null`" ]; then \
 		[ -e $@ ] && echo "Rebuilding programs due to new compiler flags"; \
@@ -240,9 +242,9 @@ clean:
 		lib/*.obj lib/*/*.obj \
 		lib/*.dllobj lib/*/*.dllobj \
 		programs/*.o programs/*.obj \
-		$(DEFAULT_TARGETS) $(TEST_PROGRAMS) programs/config.h \
+		$(DEFAULT_TARGETS) $(TEST_PROGRAMS) $(BUILD_DIR)programs/config.h \
 		libdeflate.lib libdeflatestatic.lib \
-		.lib-cflags .prog-cflags \
+		$(BUILD_DIR).lib-cflags $(BUILD_DIR).prog-cflags \
 		$(STATIC_LIB_OBJ) $(STATIC_LIB)
 
 realclean: clean
